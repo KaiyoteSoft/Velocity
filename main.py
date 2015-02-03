@@ -1,5 +1,6 @@
 import pygame, sys
 import math
+import time
 from pygame.locals import *
 
 try:
@@ -8,25 +9,14 @@ except ImportError:
     android = None
 
 pygame.init()
+
+#### setting up the clock
 player_circle = pygame.image.load("img/final_circle.png")
-player_rect = player_circle.get_rect()
-player_rect_centerx = player_rect.centerx
-player_rect_centery = player_rect.centery
+# player_rect = player_circle.get_rect()
 BLUE = ((0, 0, 255))
+clock = pygame.time.Clock()
+bullet_delay = 5
 
-class Bullet(pygame.sprite.Sprite):
-    def __init__(self, mouse_pos, player_rect):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((3, 3))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_rect()
-        self.rect.center = center
-        self.angle = self.shoot(mouse_pos)
-        self.distance = 32
-
-    def update(self):
-        self.rect.centerx = int(self.player_rect[0] + math.cos(self.angle) *self.distance)
-        self.rect.centery = int(self.player_rect[1] - math.sin(self.angle) * self.distance)
 
 def get_angle(pos, control_center):
     center = control_center
@@ -73,6 +63,29 @@ def beam(rad, player_centerx, player_centery):
     x = int(center_x + adjacent)
     y = int(center_y - opposite)
     return(x, y)
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, rad, center):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((4, 4))
+        self.image.fill((255, 0, 0))
+        self.angle = rad
+        self.center_x = center[0]
+        self.center_y = center[1]
+        self.rect = self.image.get_rect()
+        self.hypotenuse = 1
+
+    def update(self):
+        adjacent = math.cos(self.angle) * self.hypotenuse
+        opposite = math.sin(self.angle) * self.hypotenuse
+        self.rect.centerx = int(self.center_x + adjacent)
+        self.rect.centery = int(self.center_y - opposite)
+        self.hypotenuse += 8
+
+
+### variables and creating the group for bullets
+bullet_group = pygame.sprite.Group()
+bullet_timer = bullet_delay
 
 if android:
     android.init()
@@ -135,22 +148,38 @@ while True:
 
     # print(velocity_reading)
 
+    windowSurface.fill(BLACK)
+
     ### detects whether the control circle was pressed
     if control_circle.collidepoint(mouse_pos):
-        #print("control circle pressed")
         angle = get_angle(mouse_pos, control_circle.center)
-        end_x, end_y = beam(angle, player_rect.centerx, player_rect.centery)
-        windowSurface.fill(BLACK)
-        pygame.draw.line(windowSurface, BLUE, (player_rect.centerx, player_rect.centery), (end_x, end_y))
-        print(angle)
+        if bullet_timer < 0:
+            bullet = Bullet(angle, player_rect.center)
+            bullet_group.add(bullet)
+            bullet_timer = bullet_delay
+        else:
+            bullet_timer = bullet_timer - 1
 
-    windowSurface.fill(BLACK)
-    angle = get_angle(mouse_pos, control_circle.center)
-    end_x, end_y = beam(angle, player_rect.centerx, player_rect.centery)
-    pygame.draw.line(windowSurface, BLUE, (player_rect.centerx, player_rect.centery), (end_x, end_y))
+        end_x, end_y = beam(angle, player_rect.centerx, player_rect.centery)
+        pygame.draw.line(windowSurface, BLUE, (player_rect.centerx, player_rect.centery), (end_x, end_y))
+        # print(angle)
+
     control_circle_small = pygame.draw.circle(windowSurface, BLUE, (1080, 550), 10, 2)
     control_circle = pygame.draw.circle(windowSurface, WHITE, (1080, 550), 100, 4)
+
+    # if bullet_rect.centerx > 1290 or bullet_rect.centerx < 0:
+    #     bullet_group.remove(bullet)
+    #     print(bullet_group)
+
+
+### drawing the bullets
+    bullet_group.update()
+    bullet_group.draw(windowSurface)
+
 ### blitting the player
     player_rect = player_circle.get_rect(center = (x, y))
     windowSurface.blit(player_circle, player_rect)
+
+
+    clock.tick(60)
     pygame.display.update()
